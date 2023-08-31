@@ -35,10 +35,10 @@ type DNSRecord struct {
 
 func createHeader() []byte {
 	header := DNSHeader{
-		ID: 1234,
-		Flags: 0,
-		NumQuestions: 1,
-		NumAnswers: 0,
+		ID:             1234,
+		Flags:          0,
+		NumQuestions:   1,
+		NumAnswers:     0,
 		NumAuthorities: 0,
 		NumAdditionals: 0,
 	}
@@ -76,6 +76,31 @@ func encodeDomain(domain string) []byte {
 	return encoded
 }
 
+func createQuestion(domain []byte) []byte {
+	question := DNSQuestion{
+		Name:  string(domain),
+		Type:  1, // TYPE_A
+		Class: 1, // CLASS_IN
+	}
+
+	buf := new(bytes.Buffer)
+
+	// Write the domain separately, because binary.Write can't handle 'string' type
+	_, err := buf.WriteString(question.Name)
+	if err != nil {
+		// TODO return err
+		panic(err)
+	}
+	if err := binary.Write(buf, binary.BigEndian, question.Type); err != nil {
+		panic(err)
+	}
+	if err := binary.Write(buf, binary.BigEndian, question.Class); err != nil {
+		panic(err)
+	}
+
+	return buf.Bytes()
+}
+
 func callDNSServer(msg []byte) ([]byte, error) {
 	conn, err := net.Dial("udp", "8.8.8.8:53")
 	if err != nil {
@@ -105,31 +130,6 @@ func callDNSServer(msg []byte) ([]byte, error) {
 	// fmt.Println(n)
 
 	return buffer[:n], nil
-}
-
-func createQuestion(domain []byte) []byte {
-	question := DNSQuestion{
-		Name: string(domain),
-		Type: 1, // TYPE_A
-		Class: 1, // CLASS_IN
-	}
-
-	buf := new(bytes.Buffer)
-
-	// Write the domain separately, because binary.Write can't handle 'string' type
-	_, err := buf.WriteString(question.Name)
-	if err != nil {
-		// TODO return err
-		panic(err)
-	}
-	if err := binary.Write(buf, binary.BigEndian, question.Type); err != nil {
-		panic(err)
-	}
-	if err := binary.Write(buf, binary.BigEndian, question.Class); err != nil {
-		panic(err)
-	}
-
-	return buf.Bytes()
 }
 
 func decodeName(reader *bytes.Reader) (string, error) {
