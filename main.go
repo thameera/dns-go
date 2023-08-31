@@ -3,34 +3,34 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
-	"io"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"time"
 )
 
 type DNSHeader struct {
-	ID	uint16
-	Flags	uint16
-	NumQuestions	uint16
-	NumAnswers	uint16
-	NumAuthorities	uint16
-	NumAdditionals	uint16
+	ID             uint16
+	Flags          uint16
+	NumQuestions   uint16
+	NumAnswers     uint16
+	NumAuthorities uint16
+	NumAdditionals uint16
 }
 
 type DNSQuestion struct {
-	Name	string
-	Type	uint16
-	Class	uint16
+	Name  string
+	Type  uint16
+	Class uint16
 }
 
 type DNSRecord struct {
-	Name string
-	Type uint16
+	Name  string
+	Type  uint16
 	Class uint16
-	TTL int32
-	Data string
+	TTL   int32
+	Data  string
 }
 
 func createHeader() []byte {
@@ -38,7 +38,7 @@ func createHeader() []byte {
 
 	var id uint16 = 1234
 	binary.BigEndian.PutUint16(header[0:2], id)
-	
+
 	var flags uint16 = 0
 	binary.BigEndian.PutUint16(header[2:4], flags)
 
@@ -110,7 +110,7 @@ func createQuestion(domain []byte) []byte {
 
 	nextLoc := 0
 	copy(question[nextLoc:], domain)
-	
+
 	nextLoc += len(domain)
 	var recordType uint16 = 1 // TYPE_A
 	binary.BigEndian.PutUint16(question[nextLoc:nextLoc+2], recordType)
@@ -135,7 +135,7 @@ func decodeName(reader *bytes.Reader) (string, error) {
 			break
 		}
 
-		if length & 0xc0 == 0xc0 { // 0xc0 = 11000000
+		if length&0xc0 == 0xc0 { // 0xc0 = 11000000
 			// Pointer
 			result, err := decodeCompressedName(reader, length)
 			if err != nil {
@@ -312,6 +312,6 @@ func main() {
 
 	fmt.Println(res)
 
-	//readResponseHeader(res[:12])
+	// readResponseHeader(res[:12])
 	processResponse(res)
 }
