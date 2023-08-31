@@ -34,21 +34,23 @@ type DNSRecord struct {
 }
 
 func createHeader() []byte {
-	header := make([]byte, 12)
+	header := DNSHeader{
+		ID: 1234,
+		Flags: 0,
+		NumQuestions: 1,
+		NumAnswers: 0,
+		NumAuthorities: 0,
+		NumAdditionals: 0,
+	}
 
-	var id uint16 = 1234
-	binary.BigEndian.PutUint16(header[0:2], id)
+	buf := new(bytes.Buffer)
 
-	var flags uint16 = 0
-	binary.BigEndian.PutUint16(header[2:4], flags)
+	if err := binary.Write(buf, binary.BigEndian, header); err != nil {
+		// TODO return err
+		panic(err)
+	}
 
-	var numQuestions uint16 = 1
-	binary.BigEndian.PutUint16(header[4:6], numQuestions)
-
-	// The rest are all zeros, and we don't need to add them
-	// manually due to zero-initialization
-
-	return header
+	return buf.Bytes()
 }
 
 func encodeDomain(domain string) []byte {
@@ -106,20 +108,28 @@ func callDNSServer(msg []byte) ([]byte, error) {
 }
 
 func createQuestion(domain []byte) []byte {
-	question := make([]byte, len(domain)+4)
+	question := DNSQuestion{
+		Name: string(domain),
+		Type: 1, // TYPE_A
+		Class: 1, // CLASS_IN
+	}
 
-	nextLoc := 0
-	copy(question[nextLoc:], domain)
+	buf := new(bytes.Buffer)
 
-	nextLoc += len(domain)
-	var recordType uint16 = 1 // TYPE_A
-	binary.BigEndian.PutUint16(question[nextLoc:nextLoc+2], recordType)
+	// Write the domain separately, because binary.Write can't handle 'string' type
+	_, err := buf.WriteString(question.Name)
+	if err != nil {
+		// TODO return err
+		panic(err)
+	}
+	if err := binary.Write(buf, binary.BigEndian, question.Type); err != nil {
+		panic(err)
+	}
+	if err := binary.Write(buf, binary.BigEndian, question.Class); err != nil {
+		panic(err)
+	}
 
-	nextLoc += 2
-	var class uint16 = 1 // CLASS_IN
-	binary.BigEndian.PutUint16(question[nextLoc:], class)
-
-	return question
+	return buf.Bytes()
 }
 
 func decodeName(reader *bytes.Reader) (string, error) {
