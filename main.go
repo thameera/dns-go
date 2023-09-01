@@ -38,7 +38,7 @@ type DNSRecord struct {
 func createHeader() []byte {
 	header := DNSHeader{
 		ID:             uint16(rand.Intn(65536)),
-		Flags:          0,
+		Flags:          1<<8, // Recursion desired
 		NumQuestions:   1,
 		NumAnswers:     0,
 		NumAuthorities: 0,
