@@ -272,6 +272,7 @@ func parseRecord(reader *bytes.Reader) (DNSRecord, error) {
 	if err != nil {
 		return record, err
 	}
+	// TODO: Handle when data is not an IP
 	record.Data = net.IP(data).String()
 
 	return record, nil
@@ -290,18 +291,42 @@ func processResponse(res []byte) {
 	fmt.Println(decodedHeader)
 
 	// Parse question
+	// We assume only one question was sent - otherwise we need to loop this
 	question, err := parseQuestion(reader)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(question)
 
-	// Parse record
-	record, err := parseRecord(reader)
-	if err != nil {
-		panic(err)
+	// Parse answers
+	for i := 0; i < int(decodedHeader.NumAnswers); i++ {
+		record, err := parseRecord(reader)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Answer:")
+		fmt.Println(record)
 	}
-	fmt.Println(record)
+
+	// Parse authorities
+	for i := 0; i < int(decodedHeader.NumAuthorities); i++ {
+		record, err := parseRecord(reader)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Authority:")
+		fmt.Println(record)
+	}
+
+	// Parse additionals
+	for i := 0; i < int(decodedHeader.NumAdditionals); i++ {
+		record, err := parseRecord(reader)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Additional:")
+		fmt.Println(record)
+	}
 }
 
 func main() {
