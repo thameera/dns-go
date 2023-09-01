@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"os"
 	"strings"
@@ -36,7 +37,7 @@ type DNSRecord struct {
 
 func createHeader() []byte {
 	header := DNSHeader{
-		ID:             1234,
+		ID:             uint16(rand.Intn(65536)),
 		Flags:          0,
 		NumQuestions:   1,
 		NumAnswers:     0,
@@ -311,6 +312,8 @@ func main() {
 	}
 
 	domain := os.Args[1]
+
+	rand.Seed(time.Now().UnixNano())
 
 	header := createHeader()
 	encDomain := encodeDomain(domain)
