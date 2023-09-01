@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strings"
 	"time"
 )
@@ -303,8 +304,16 @@ func processResponse(res []byte) {
 }
 
 func main() {
+	if len(os.Args) != 2 {
+		fmt.Println("Usage:")
+		fmt.Println("\tgo run . DOMAIN")
+		os.Exit(1)
+	}
+
+	domain := os.Args[1]
+
 	header := createHeader()
-	encDomain := encodeDomain("example.com")
+	encDomain := encodeDomain(domain)
 	question := createQuestion(encDomain)
 
 	// fmt.Println(header)
