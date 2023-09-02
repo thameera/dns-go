@@ -55,27 +55,27 @@ func createHeader() []byte {
 	return buf.Bytes()
 }
 
-func encodeDomain(domain string) []byte {
-	// Currently supports second-level domains only
-	// example.com works, but not sub.example.com
-	parts := strings.Split(domain, ".")
+func encodeDomain(domain string) ([]byte, error) {
+	buf := new(bytes.Buffer)
 
-	arrLength := 3 + len(parts[0]) + len(parts[1])
-	encoded := make([]byte, arrLength)
+	for _, part := range strings.Split(domain, ".") {
+		// Length of the part
+		if err := binary.Write(buf, binary.BigEndian, byte(len(part))); err != nil {
+			return nil, err
+		}
 
-	nextLoc := 0
-	encoded[0] = byte(len(parts[0]))
-	nextLoc += 1
-	copy(encoded[nextLoc:], []byte(parts[0]))
+		// The part itself
+		if _, err := buf.WriteString(part); err != nil {
+			return nil, err
+		}
+	}
 
-	nextLoc += len(parts[0])
-	encoded[nextLoc] = byte(len(parts[1]))
-	nextLoc += 1
-	copy(encoded[nextLoc:], []byte(parts[1]))
+	// Add trailing zero
+	if err := binary.Write(buf, binary.BigEndian, byte(0)); err != nil {
+		return nil, err
+	}
 
-	// Last byte is already set to zero.
-
-	return encoded
+	return buf.Bytes(), nil
 }
 
 func createQuestion(domain []byte) []byte {
@@ -341,7 +341,10 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	header := createHeader()
-	encDomain := encodeDomain(domain)
+	encDomain, err := encodeDomain(domain)
+	if err != nil {
+		panic(err)
+	}
 	question := createQuestion(encDomain)
 
 	// fmt.Println(header)
