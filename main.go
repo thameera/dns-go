@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -234,6 +235,11 @@ func parseQuestion(reader *bytes.Reader) (DNSQuestion, error) {
 }
 
 func parseRecord(reader *bytes.Reader) (DNSRecord, error) {
+	var dnsTypes = map[uint16]string{
+    1:   "A",
+    28:  "AAAA",
+    5:   "CNAME",
+	}
 	var record DNSRecord
 
 	name, err := decodeName(reader)
@@ -265,15 +271,36 @@ func parseRecord(reader *bytes.Reader) (DNSRecord, error) {
 		return record, err
 	}
 
-	data := make([]byte, dataLen)
 	fmt.Println("Data len", dataLen)
-	err = binary.Read(reader, binary.BigEndian, &data)
-	fmt.Println(data)
-	if err != nil {
-		return record, err
+
+	typeStr, found := dnsTypes[recordType]
+	if !found {
+		errMsg := fmt.Sprintf("Unsupported DNS type: %d", recordType)
+		return record, errors.New(errMsg)
 	}
-	// TODO: Handle when data is not an IP
-	record.Data = net.IP(data).String()
+
+	// Parse the data based on the DNS type
+	if typeStr == "A" || typeStr == "AAAA" {
+		// In this case, the data is an IP
+
+		data := make([]byte, dataLen)
+		err = binary.Read(reader, binary.BigEndian, &data)
+		fmt.Println(data)
+		if err != nil {
+			return record, err
+		}
+		record.Data = net.IP(data).String()
+
+	} else if typeStr == "CNAME" {
+		// In this case, the data is a domain
+
+		data, err := decodeName(reader)
+		if err != nil {
+			return record, err
+		}
+		record.Data = string(data)
+
+	}
 
 	return record, nil
 }
