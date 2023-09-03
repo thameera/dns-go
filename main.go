@@ -13,6 +13,10 @@ import (
 	"time"
 )
 
+type inputData struct {
+	Domain string
+}
+
 type DNSHeader struct {
 	ID             uint16
 	Flags          uint16
@@ -39,7 +43,7 @@ type DNSRecord struct {
 func createHeader() []byte {
 	header := DNSHeader{
 		ID:             uint16(rand.Intn(65536)),
-		Flags:          1<<8, // Recursion desired
+		Flags:          1 << 8, // Recursion desired
 		NumQuestions:   1,
 		NumAnswers:     0,
 		NumAuthorities: 0,
@@ -235,10 +239,10 @@ func parseQuestion(reader *bytes.Reader) (DNSQuestion, error) {
 }
 
 func parseRecord(reader *bytes.Reader) (DNSRecord, error) {
-	var dnsTypes = map[uint16]string{
-    1:   "A",
-    28:  "AAAA",
-    5:   "CNAME",
+	dnsTypes := map[uint16]string{
+		1:  "A",
+		28: "AAAA",
+		5:  "CNAME",
 	}
 	var record DNSRecord
 
@@ -356,19 +360,36 @@ func processResponse(res []byte) {
 	}
 }
 
-func main() {
+func showUsage() {
+	fmt.Println("USAGE:")
+	fmt.Println("\tgo run . [name]")
+	fmt.Println("where:")
+	fmt.Println("\tname: name of the resource record to be looked up. Eg: the domain.")
+}
+
+func parseArgs() (inputData, error) {
+	var data inputData
+
 	if len(os.Args) != 2 {
-		fmt.Println("Usage:")
-		fmt.Println("\tgo run . DOMAIN")
-		os.Exit(1)
+		return data, errors.New("Invalid number of arguments")
 	}
 
-	domain := os.Args[1]
+	data.Domain = os.Args[1]
+
+	return data, nil
+}
+
+func main() {
+	input, err := parseArgs()
+	if err != nil {
+		showUsage()
+		os.Exit(1)
+	}
 
 	rand.Seed(time.Now().UnixNano())
 
 	header := createHeader()
-	encDomain, err := encodeDomain(domain)
+	encDomain, err := encodeDomain(input.Domain)
 	if err != nil {
 		panic(err)
 	}
