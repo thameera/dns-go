@@ -15,6 +15,7 @@ import (
 
 type inputData struct {
 	Domain string
+	Type   string
 }
 
 type DNSHeader struct {
@@ -83,10 +84,15 @@ func encodeDomain(domain string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func createQuestion(domain []byte) []byte {
+func createQuestion(domain []byte, recordType string) []byte {
+	dnsTypes := map[string]uint16{
+    "A": 1,
+    "AAAA": 28,
+	}
+
 	question := DNSQuestion{
 		Name:  string(domain),
-		Type:  1, // TYPE_A
+		Type:  dnsTypes[recordType],
 		Class: 1, // CLASS_IN
 	}
 
@@ -370,11 +376,36 @@ func showUsage() {
 func parseArgs() (inputData, error) {
 	var data inputData
 
-	if len(os.Args) != 2 {
-		return data, errors.New("Invalid number of arguments")
+	if len(os.Args) < 2 {
+		return data, errors.New("Insufficient arguments")
+	}
+	if len(os.Args) > 3 {
+		return data, errors.New("Too many arguments")
 	}
 
-	data.Domain = os.Args[1]
+	// Loop through each command-line arg and identify them
+	for _, arg := range os.Args[1:] {
+		upperArg := strings.ToUpper(arg)
+
+		if strings.Index(arg, ".") > 0 {
+			if data.Domain != "" {
+				return data, errors.New("Two names specified")
+			}
+			data.Domain = arg
+		} else if upperArg == "A" || upperArg == "AAAA" {
+			if data.Type != "" {
+				return data, errors.New("Type duplicated")
+			}
+			data.Type = strings.ToUpper(arg)
+		} else {
+			return data, errors.New("Invalid argument")
+		}
+	}
+
+	// If no type specified, default to A record
+	if data.Type == "" {
+		data.Type = "A"
+	}
 
 	return data, nil
 }
@@ -382,9 +413,11 @@ func parseArgs() (inputData, error) {
 func main() {
 	input, err := parseArgs()
 	if err != nil {
+		fmt.Println("Error: ", err)
 		showUsage()
 		os.Exit(1)
 	}
+	fmt.Println(input)
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -393,7 +426,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	question := createQuestion(encDomain)
+	question := createQuestion(encDomain, input.Type)
 
 	// fmt.Println(header)
 	// fmt.Println(encDomain)
