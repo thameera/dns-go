@@ -96,8 +96,9 @@ func encodeDomain(domain string) ([]byte, error) {
 
 func createQuestion(domain []byte, recordType string) []byte {
 	dnsTypes := map[string]uint16{
-		"A":    1,
-		"AAAA": 28,
+		"A":     1,
+		"AAAA":  28,
+		"CNAME": 5,
 	}
 
 	question := DNSQuestion{
@@ -381,10 +382,10 @@ func showUsage() {
 	fmt.Println("USAGE:")
 	fmt.Println("\tgo run . [options...] <name> [type]")
 	fmt.Println("where:")
-	fmt.Println("\tname: name of the resource record to be looked up. Eg: the domain.")
-	fmt.Println("\ttype: Type of the query. Supported options: A, AAAA. Defaults to A if not specified.")
+	fmt.Println("\tname: \tname of the resource record to be looked up. Eg: the domain.")
+	fmt.Println("\ttype: \tType of the query. Supported options: A, AAAA, CNAME. \n\t\tDefaults to A if not specified.")
 	fmt.Println("Options:")
-	fmt.Println("\t-v: Verbose logging")
+	fmt.Println("\t-v: \tVerbose logging")
 }
 
 func parseArgs() (inputData, error) {
@@ -406,7 +407,7 @@ func parseArgs() (inputData, error) {
 				return data, errors.New("Two names specified")
 			}
 			data.Domain = arg
-		} else if upperArg == "A" || upperArg == "AAAA" {
+		} else if upperArg == "A" || upperArg == "AAAA" || upperArg == "CNAME" {
 			if data.Type != "" {
 				return data, errors.New("Type duplicated")
 			}
