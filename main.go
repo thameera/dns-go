@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"math/rand"
@@ -12,6 +13,14 @@ import (
 	"strings"
 	"time"
 )
+
+var verbose bool
+
+func debug(format string, v ...interface{}) {
+	if verbose {
+		fmt.Printf("DEBUG: "+format+"\n", v...)
+	}
+}
 
 type inputData struct {
 	Domain string
@@ -50,6 +59,7 @@ func createHeader() []byte {
 		NumAuthorities: 0,
 		NumAdditionals: 0,
 	}
+	debug("%#v", header)
 
 	buf := new(bytes.Buffer)
 
@@ -86,8 +96,8 @@ func encodeDomain(domain string) ([]byte, error) {
 
 func createQuestion(domain []byte, recordType string) []byte {
 	dnsTypes := map[string]uint16{
-    "A": 1,
-    "AAAA": 28,
+		"A":    1,
+		"AAAA": 28,
 	}
 
 	question := DNSQuestion{
@@ -95,6 +105,7 @@ func createQuestion(domain []byte, recordType string) []byte {
 		Type:  dnsTypes[recordType],
 		Class: 1, // CLASS_IN
 	}
+	debug("%#v", question)
 
 	buf := new(bytes.Buffer)
 
@@ -121,14 +132,14 @@ func callDNSServer(msg []byte) ([]byte, error) {
 		return nil, err
 	}
 	defer conn.Close()
+	debug("Connected to DNS server")
 
 	_, err = conn.Write(msg)
 	if err != nil {
 		fmt.Println("Error sending msg to DNS server", err)
 		return nil, err
 	}
-
-	fmt.Println("DNS query sent")
+	debug("DNS query sent")
 
 	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
@@ -138,9 +149,8 @@ func callDNSServer(msg []byte) ([]byte, error) {
 		fmt.Println("Error reading response", err)
 		return nil, err
 	}
-
-	// fmt.Println(buffer)
-	// fmt.Println(n)
+	debug("Read DNS response")
+	debug("%v", buffer[:n])
 
 	return buffer[:n], nil
 }
@@ -281,7 +291,7 @@ func parseRecord(reader *bytes.Reader) (DNSRecord, error) {
 		return record, err
 	}
 
-	fmt.Println("Data len", dataLen)
+	debug("Data len: %d", dataLen)
 
 	typeStr, found := dnsTypes[recordType]
 	if !found {
@@ -295,7 +305,6 @@ func parseRecord(reader *bytes.Reader) (DNSRecord, error) {
 
 		data := make([]byte, dataLen)
 		err = binary.Read(reader, binary.BigEndian, &data)
-		fmt.Println(data)
 		if err != nil {
 			return record, err
 		}
@@ -324,8 +333,7 @@ func processResponse(res []byte) {
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Println(decodedHeader)
+	debug("%#v", decodedHeader)
 
 	// Parse question
 	// We assume only one question was sent - otherwise we need to loop this
@@ -333,7 +341,7 @@ func processResponse(res []byte) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(question)
+	debug("%#v", question)
 
 	// Parse answers
 	for i := 0; i < int(decodedHeader.NumAnswers); i++ {
@@ -341,6 +349,7 @@ func processResponse(res []byte) {
 		if err != nil {
 			panic(err)
 		}
+		debug("%#v", record)
 		fmt.Println("Answer:")
 		fmt.Println(record)
 	}
@@ -351,6 +360,7 @@ func processResponse(res []byte) {
 		if err != nil {
 			panic(err)
 		}
+		debug("%#v", record)
 		fmt.Println("Authority:")
 		fmt.Println(record)
 	}
@@ -361,6 +371,7 @@ func processResponse(res []byte) {
 		if err != nil {
 			panic(err)
 		}
+		debug("%#v", record)
 		fmt.Println("Additional:")
 		fmt.Println(record)
 	}
@@ -368,9 +379,12 @@ func processResponse(res []byte) {
 
 func showUsage() {
 	fmt.Println("USAGE:")
-	fmt.Println("\tgo run . [name]")
+	fmt.Println("\tgo run . [options...] <name> [type]")
 	fmt.Println("where:")
 	fmt.Println("\tname: name of the resource record to be looked up. Eg: the domain.")
+	fmt.Println("\ttype: Type of the query. Supported options: A, AAAA. Defaults to A if not specified.")
+	fmt.Println("Options:")
+	fmt.Println("\t-v: Verbose logging")
 }
 
 func parseArgs() (inputData, error) {
@@ -379,12 +393,12 @@ func parseArgs() (inputData, error) {
 	if len(os.Args) < 2 {
 		return data, errors.New("Insufficient arguments")
 	}
-	if len(os.Args) > 3 {
-		return data, errors.New("Too many arguments")
-	}
 
-	// Loop through each command-line arg and identify them
-	for _, arg := range os.Args[1:] {
+	flag.BoolVar(&verbose, "v", false, "verbose mode")
+	flag.Parse()
+
+	// Loop through each non-flag argument and identify them
+	for _, arg := range flag.Args() {
 		upperArg := strings.ToUpper(arg)
 
 		if strings.Index(arg, ".") > 0 {
@@ -417,7 +431,7 @@ func main() {
 		showUsage()
 		os.Exit(1)
 	}
-	fmt.Println(input)
+	debug("%#v", input)
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -428,21 +442,12 @@ func main() {
 	}
 	question := createQuestion(encDomain, input.Type)
 
-	// fmt.Println(header)
-	// fmt.Println(encDomain)
-	// fmt.Println(question)
-
 	query := append(header, question...)
-	// fmt.Println(query)
-	// fmt.Println(hex.EncodeToString(query))
 
 	res, err := callDNSServer(query)
 	if err != nil {
 		panic("Failed to call DNS server")
 	}
 
-	fmt.Println(res)
-
-	// readResponseHeader(res[:12])
 	processResponse(res)
 }
