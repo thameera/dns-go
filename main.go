@@ -50,6 +50,28 @@ type DNSRecord struct {
 	Data  string
 }
 
+func typeToStr(recordType uint16) (string, bool) {
+	dnsTypes := map[uint16]string{
+		1:  "A",
+		28: "AAAA",
+		5:  "CNAME",
+		16: "TXT",
+	}
+	str, found := dnsTypes[recordType]
+	return str, found
+}
+
+func strToType(str string) (uint16, bool) {
+	dnsTypes := map[string]uint16{
+		"A":     1,
+		"AAAA":  28,
+		"CNAME": 5,
+		"TXT":   16,
+	}
+	recordType, found := dnsTypes[str]
+	return recordType, found
+}
+
 func createHeader() []byte {
 	header := DNSHeader{
 		ID:             uint16(rand.Intn(65536)),
@@ -95,16 +117,14 @@ func encodeDomain(domain string) ([]byte, error) {
 }
 
 func createQuestion(domain []byte, recordType string) []byte {
-	dnsTypes := map[string]uint16{
-		"A":     1,
-		"AAAA":  28,
-		"CNAME": 5,
-		"TXT":   16,
+	typeStr, found := strToType(recordType)
+	if !found {
+		panic("Unsupported DNS type: "+recordType)
 	}
 
 	question := DNSQuestion{
 		Name:  string(domain),
-		Type:  dnsTypes[recordType],
+		Type:  typeStr,
 		Class: 1, // CLASS_IN
 	}
 	debug("%#v", question)
@@ -257,12 +277,6 @@ func parseQuestion(reader *bytes.Reader) (DNSQuestion, error) {
 }
 
 func parseRecord(reader *bytes.Reader) (DNSRecord, error) {
-	dnsTypes := map[uint16]string{
-		1:  "A",
-		28: "AAAA",
-		5:  "CNAME",
-		16: "TXT",
-	}
 	var record DNSRecord
 
 	name, err := decodeName(reader)
@@ -296,7 +310,7 @@ func parseRecord(reader *bytes.Reader) (DNSRecord, error) {
 
 	debug("Data len: %d", dataLen)
 
-	typeStr, found := dnsTypes[recordType]
+	typeStr, found := typeToStr(recordType)
 	if !found {
 		errMsg := fmt.Sprintf("Unsupported DNS type: %d", recordType)
 		return record, errors.New(errMsg)
