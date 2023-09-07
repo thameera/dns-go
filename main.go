@@ -351,6 +351,11 @@ func parseRecord(reader *bytes.Reader) (DNSRecord, error) {
 	return record, nil
 }
 
+func printRecord(record *DNSRecord) {
+	dnsType, _ := typeToStr(record.Type)
+	fmt.Printf("%s\t\t%d\tIN\t%s\t%s\n", record.Name, record.TTL, dnsType, record.Data)
+}
+
 func processResponse(res []byte) {
 	reader := bytes.NewReader(res)
 
@@ -377,8 +382,8 @@ func processResponse(res []byte) {
 			panic(err)
 		}
 		debug("%#v", record)
-		fmt.Println("Answer:")
-		fmt.Println(record)
+		debug("Answer:")
+		printRecord(&record)
 	}
 
 	// Parse authorities
@@ -388,8 +393,8 @@ func processResponse(res []byte) {
 			panic(err)
 		}
 		debug("%#v", record)
-		fmt.Println("Authority:")
-		fmt.Println(record)
+		debug("Authority:")
+		printRecord(&record)
 	}
 
 	// Parse additionals
@@ -399,8 +404,8 @@ func processResponse(res []byte) {
 			panic(err)
 		}
 		debug("%#v", record)
-		fmt.Println("Additional:")
-		fmt.Println(record)
+		debug("Additional:")
+		printRecord(&record)
 	}
 }
 
