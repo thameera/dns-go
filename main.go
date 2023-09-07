@@ -99,6 +99,7 @@ func createQuestion(domain []byte, recordType string) []byte {
 		"A":     1,
 		"AAAA":  28,
 		"CNAME": 5,
+		"TXT":   16,
 	}
 
 	question := DNSQuestion{
@@ -260,6 +261,7 @@ func parseRecord(reader *bytes.Reader) (DNSRecord, error) {
 		1:  "A",
 		28: "AAAA",
 		5:  "CNAME",
+		16: "TXT",
 	}
 	var record DNSRecord
 
@@ -315,6 +317,16 @@ func parseRecord(reader *bytes.Reader) (DNSRecord, error) {
 		// In this case, the data is a domain
 
 		data, err := decodeName(reader)
+		if err != nil {
+			return record, err
+		}
+		record.Data = string(data)
+
+	} else if typeStr == "TXT" {
+		// The data is just a string in this case
+
+		data := make([]byte, dataLen)
+		err = binary.Read(reader, binary.BigEndian, &data)
 		if err != nil {
 			return record, err
 		}
@@ -407,7 +419,7 @@ func parseArgs() (inputData, error) {
 				return data, errors.New("Two names specified")
 			}
 			data.Domain = arg
-		} else if upperArg == "A" || upperArg == "AAAA" || upperArg == "CNAME" {
+		} else if upperArg == "A" || upperArg == "AAAA" || upperArg == "CNAME" || upperArg == "TXT" {
 			if data.Type != "" {
 				return data, errors.New("Type duplicated")
 			}
