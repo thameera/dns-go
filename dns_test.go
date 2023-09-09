@@ -91,7 +91,11 @@ func TestStrToType(t *testing.T) {
 }
 
 func TestCreateHeader(t *testing.T) {
-	got := createHeader()
+	got, err := createHeader()
+	if err != nil {
+		t.Fatalf("Expected nil error, but got: %s", err)
+	}
+
 	want := goldenValue(t, "createHeader", got[2:])
 	// We used got[2:] there because the first two bytes are a random ID
 

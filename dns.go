@@ -72,7 +72,7 @@ func strToType(str string) (uint16, bool) {
 	return recordType, found
 }
 
-func createHeader() []byte {
+func createHeader() ([]byte, error) {
 	header := DNSHeader{
 		ID:             uint16(rand.Intn(65536)),
 		Flags:          1 << 8, // Recursion desired
@@ -86,11 +86,10 @@ func createHeader() []byte {
 	buf := new(bytes.Buffer)
 
 	if err := binary.Write(buf, binary.BigEndian, header); err != nil {
-		// TODO return err
-		panic(err)
+		return []byte{}, err
 	}
 
-	return buf.Bytes()
+	return buf.Bytes(), nil
 }
 
 func encodeDomain(domain string) ([]byte, error) {
@@ -116,14 +115,19 @@ func encodeDomain(domain string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func createQuestion(domain []byte, recordType string) []byte {
+func createQuestion(domain string, recordType string) ([]byte, error) {
 	typeStr, found := strToType(recordType)
 	if !found {
-		panic("Unsupported DNS type: "+recordType)
+		return []byte{}, errors.New("Unsupported DNS type: "+recordType)
+	}
+
+	encDomain, err := encodeDomain(domain)
+	if err != nil {
+		return []byte{}, err
 	}
 
 	question := DNSQuestion{
-		Name:  string(domain),
+		Name:  string(encDomain),
 		Type:  typeStr,
 		Class: 1, // CLASS_IN
 	}
@@ -132,19 +136,18 @@ func createQuestion(domain []byte, recordType string) []byte {
 	buf := new(bytes.Buffer)
 
 	// Write the domain separately, because binary.Write can't handle 'string' type
-	_, err := buf.WriteString(question.Name)
+	_, err = buf.WriteString(question.Name)
 	if err != nil {
-		// TODO return err
-		panic(err)
+		return []byte{}, err
 	}
 	if err := binary.Write(buf, binary.BigEndian, question.Type); err != nil {
-		panic(err)
+		return []byte{}, err
 	}
 	if err := binary.Write(buf, binary.BigEndian, question.Class); err != nil {
-		panic(err)
+		return []byte{}, err
 	}
 
-	return buf.Bytes()
+	return buf.Bytes(), nil
 }
 
 func callDNSServer(msg []byte) ([]byte, error) {
@@ -467,12 +470,15 @@ func main() {
 
 	rand.Seed(time.Now().UnixNano())
 
-	header := createHeader()
-	encDomain, err := encodeDomain(input.Domain)
+	header, err := createHeader()
 	if err != nil {
 		panic(err)
 	}
-	question := createQuestion(encDomain, input.Type)
+
+	question, err := createQuestion(input.Domain, input.Type)
+	if err != nil {
+		panic(err)
+	}
 
 	query := append(header, question...)
 
