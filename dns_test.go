@@ -1,8 +1,42 @@
 package main
 
 import (
+	"bytes"
+	"flag"
+	"io/ioutil"
 	"testing"
 )
+
+// If we run `go test -update`, it will update the golden
+// files. Should be run when adding a new test or only if
+// an update is really necessary.
+var update = flag.Bool("update", false, "update the golden files")
+
+// Function to read/update "golden values" which are known
+// good outputs.
+func goldenValue(t *testing.T, goldenFile string, got []byte) []byte {
+	t.Helper()
+	goldenPath := "testdata/" + goldenFile + ".golden"
+
+	if *update {
+		ioutil.WriteFile(goldenPath, got, 0644)
+
+		return got
+	}
+
+	want, err := ioutil.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatalf("Failed reading .golden file: %s", err)
+	}
+
+	return want
+}
+
+func compareByteArrays(t *testing.T, testName string, got, want []byte) {
+	if !bytes.Equal(got, want) {
+		t.Errorf("Output doesn't match golden file in test '%s'.\nWant:\n%v\nGot:\n%v\n", testName, want, got)
+	}
+}
 
 func TestTypeToStr(t *testing.T) {
 	tests := []struct {
@@ -54,4 +88,12 @@ func TestStrToType(t *testing.T) {
 			t.Errorf("Found of strToType(%s) = %t, want %t", tt.in, gotFound, tt.wantFound)
 		}
 	}
+}
+
+func TestCreateHeader(t *testing.T) {
+	got := createHeader()
+	want := goldenValue(t, "createHeader", got[2:])
+	// We used got[2:] there because the first two bytes are a random ID
+
+	compareByteArrays(t, "Test header", got[2:], want)
 }
