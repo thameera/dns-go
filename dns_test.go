@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"testing"
 )
@@ -100,4 +101,25 @@ func TestCreateHeader(t *testing.T) {
 	// We used got[2:] there because the first two bytes are a random ID
 
 	compareByteArrays(t, "Test header", got[2:], want)
+}
+
+func TestEncodeDomain(t *testing.T) {
+	tests := []struct {
+		in	string
+		want []byte
+	}{
+		{"google.com", []byte{6, 'g', 'o', 'o', 'g', 'l', 'e', 3, 'c', 'o', 'm', 0}},
+		{"read.readwise.io", []byte{4, 'r', 'e', 'a', 'd', 8, 'r', 'e', 'a', 'd', 'w', 'i', 's', 'e', 2, 'i', 'o', 0}},
+	}
+
+	for _, tt := range tests {
+		got, err := encodeDomain(tt.in)
+		if err != nil {
+			t.Fatalf("Expected nil error, but got: %s", err)
+		}
+
+		testName := fmt.Sprintf("Encode Domain: %s", tt.in)
+
+		compareByteArrays(t, testName, got, tt.want)
+	}
 }
