@@ -123,3 +123,31 @@ func TestEncodeDomain(t *testing.T) {
 		compareByteArrays(t, testName, got, tt.want)
 	}
 }
+
+func TestCreateQuestion(t *testing.T) {
+	tests := []struct {
+		testName string
+		domain string
+		recordType string
+		errMsg string
+	}{
+		{"a_record", "example.com", "A", ""},
+		{"a_record_subdomain", "www.example.com", "A", ""},
+		{"aaaa_record", "ipv6.google.com", "AAAA", ""},
+		{"invalid_record_type", "example.com", "P", "Unsupported DNS type: P"},
+	}
+
+	for _, tt := range tests {
+		got, err := createQuestion(tt.domain, tt.recordType)
+
+		if tt.errMsg == "" && err != nil {
+			t.Fatalf("Expected nil error, but got: %s", err)
+		} else if tt.errMsg != "" && tt.errMsg != err.Error() {
+			t.Fatalf("Unexpected error. Want: %s, Got: %s", err.Error(), tt.errMsg)
+		}
+
+		want := goldenValue(t, "createQuestion_"+tt.testName, got)
+
+		compareByteArrays(t, "Create question: "+tt.testName, got, want)
+	}
+}
